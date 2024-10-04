@@ -1,5 +1,5 @@
 name := "pack"
-outDir := "out"
+outDir := "bin"
 target := outDir + "/" + name
 
 # show recipes
