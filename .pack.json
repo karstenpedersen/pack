@@ -1,6 +1,4 @@
 {
-	"name": "assignment1",
-	"include": [],
-	"exclude": [],
-	"outDir": "."
+	"name": "pack",
+	"method": "zip"
 }
