@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"path"
 	"archive/zip"
+	"fmt"
 
+	"github.com/karstenpedersen/pack/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -14,19 +13,14 @@ func init() {
 }
 
 var showCmd = &cobra.Command{
-	Use: "show",
-	Short: "Show files in pack.zip",
+	Use:   "show",
+	Short: "Show files in output",
 	Run: func(cmd *cobra.Command, args []string) {
-		name := projectConfig.GetString("name")
-		outDir := projectConfig.GetString("outDir")
+		path := project.GetTargetPath()
 
-		outFile := name + ".zip"
-		outputPath := path.Join(outDir, outFile)
-
-		zipListing, err := zip.OpenReader(outputPath)
+		zipListing, err := zip.OpenReader(path)
 		if err != nil {
-			fmt.Println("run pack to package project")
-			os.Exit(1)
+			utils.Exit("run pack to package project:", err)
 		}
 		defer zipListing.Close()
 		for _, file := range zipListing.File {

@@ -3,10 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/spf13/cobra"
+	"github.com/karstenpedersen/pack/pack"
+	"github.com/karstenpedersen/pack/ui"
 	"github.com/karstenpedersen/pack/utils"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -16,7 +17,7 @@ func init() {
 }
 
 var initCmd = &cobra.Command{
-	Use: "init",
+	Use:   "init",
 	Short: "Initialize project",
 	Annotations: map[string]string{
 		"skipProjectConfig": "true",
@@ -25,40 +26,40 @@ var initCmd = &cobra.Command{
 		yesToAll, _ := cmd.Flags().GetBool("yes")
 		override, _ := cmd.Flags().GetBool("override")
 
-		configFile := PROJECT_CONFIG_FILE + ".json"
-
-		// Check if config file already exists
-		if _, err := os.Stat(configFile); !override && err == nil {
-			fmt.Println("Config file already exists.")
-			os.Exit(1)
-		}
-
-		wd, err := os.Getwd()
+		configFile, err := pack.GetProjectConfigPath()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			utils.Exit(err)
 		}
-		name := filepath.Base(wd)
-		method := "zip"
+		if exists, _ := pack.ProjectConfigExists(); exists && !override {
+			utils.Exit("Config file already exists.")
+		}
 
+		// Default config
+		config, err := pack.DefaultProject(app)
+		if err != nil {
+			utils.Exit(err)
+		}
+
+		// Get input from user
 		if !yesToAll {
-			name = utils.Input("Name", name)
-			method = utils.Input("Method", method)
+			ui.Input("Name", &config.Name)
+			ui.Input("Method", &config.Method)
+			ui.Input("Output directory", &config.OutDir)
 		}
 
-		var defaultConfig = fmt.Sprintf(`{
-	"name": "%s",
-	"method": "%s"
-}`, name, method)
+		// Marshal config
+		configStr, err := config.Marshal()
+		if err != nil {
+			utils.Exit("Failed to marshal config")
+		}
 
 		// Creating config
-		err = os.WriteFile(configFile, []byte(defaultConfig), 0644)
+		err = os.WriteFile(configFile, []byte(configStr), 0644)
 		if err != nil {
-			fmt.Println("Error creating config file:", err)
-			os.Exit(1)
+			utils.Exit("Error creating config file:", err)
 		}
 
 		fmt.Println("Initialized project:")
-		fmt.Println(defaultConfig)
+		fmt.Println(string(configStr))
 	},
 }

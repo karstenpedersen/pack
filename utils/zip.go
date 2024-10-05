@@ -1,13 +1,12 @@
 package utils
 
 import (
+	"archive/zip"
 	"io"
 	"os"
-	"archive/zip"
 )
 
-
-func ZipFiles(files []string, path string) error {
+func ZipFiles(files []string, path string, renameRules map[string]string) error {
 	archive, err := os.Create(path)
 	if err != nil {
 		return err
@@ -26,6 +25,10 @@ func ZipFiles(files []string, path string) error {
 		defer file.Close()
 
 		// Copy file to archive
+		value, exists := renameRules[filename]
+		if exists {
+			filename = value
+		}
 		write, err := writer.Create(filename)
 		if err != nil {
 			return err

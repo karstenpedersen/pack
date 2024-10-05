@@ -5,32 +5,23 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
-	"github.com/karstenpedersen/pack/cfg"
+	"github.com/karstenpedersen/pack/pack"
 	"github.com/karstenpedersen/pack/utils"
 )
 
-
-const APP_CONFIG_FILE = "config"
-const PROJECT_CONFIG_FILE = ".pack"
-var appConfig *viper.Viper = viper.New()
-var projectConfig *viper.Viper = viper.New()
+var app *pack.App
+var project *pack.Project
 var projectConfigFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "pack",
 	Short: "Packages files",
-	Long: `Packages files.`,
+	Long:  `Packages files.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		err := cfg.InitAppConfig(appConfig, APP_CONFIG_FILE)
-		if err != nil {
-			fmt.Println("Error reading app config")
-			os.Exit(1)
-		}
+		app = pack.LoadApp()
 
 		if _, skip := cmd.Annotations["skipProjectConfig"]; skip {
 			return
@@ -41,74 +32,39 @@ var rootCmd = &cobra.Command{
 			name = ".pack"
 		}
 
-		err = cfg.InitProjectConfig(projectConfig, dir, name, ext)
+		p, err := pack.LoadProject(app, dir, name, ext)
 		if err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-				fmt.Println("No config file found.\nSetup project by running 'pack init'")
-			} else {
-				fmt.Println("Can't load project config:", err)
-			}
-			os.Exit(1)
+			utils.Exit(err)
 		}
+		project = p
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		name := projectConfig.GetString("name")
-		outDir := projectConfig.GetString("outDir")
-		method := projectConfig.GetString("method")
-		include := projectConfig.GetStringSlice("include")
-		exclude := projectConfig.GetStringSlice("exclude")
-		beforeHook := projectConfig.GetString("beforeHook")
-		afterHook := projectConfig.GetString("afterHook")
-
 		// Create output directory
-		os.MkdirAll(outDir, os.ModePerm)
+		os.MkdirAll(project.OutDir, os.ModePerm)
 
 		// Execute beforeHook
-		if beforeHook != "" {
-			result, err := runHook(beforeHook)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			fmt.Println("BEFORE HOOK:")
-			fmt.Print(result)
+		if err := tryRunHook(project.Hooks.PreHook); err != nil {
+			utils.Exit("Error running preHook:", err)
 		}
 
-		// Get files to package
-		files := utils.GlobMatch(".", include, exclude)
-
-		outputPath := ""
-		if (method == "zip") {
-			outFile := name + ".zip"
-			outputPath = filepath.Join(outDir, outFile)
-			if err := utils.ZipFiles(files, outputPath); err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-		} else {
-			fmt.Println("Incorrect method:", method)
-			os.Exit(1)
+		path, err := project.Pack()
+		if err != nil {
+			utils.Exit(err)
 		}
 
 		// Execute afterHook
-		if afterHook != "" {
-			result, err := runHook(afterHook)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			fmt.Println("AFTER HOOK:")
-			fmt.Print(result)
+		if err := tryRunHook(project.Hooks.PostHook); err != nil {
+			utils.Exit("Error running postHook:", err)
 		}
 
-		fmt.Println(outputPath)
+		fmt.Println(path)
 	},
 }
 
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		utils.Exit("Error starting cli")
 	}
 }
 
@@ -125,4 +81,16 @@ func runHook(hook string) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+func tryRunHook(hook string) error {
+	if hook == "" {
+		return nil
+	}
+	result, err := runHook(hook)
+	if err != nil {
+		return err
+	}
+	fmt.Print(result)
+	return nil
 }

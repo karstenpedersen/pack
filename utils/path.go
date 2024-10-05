@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-
 func GetPathBaseAndExtension(path string) (string, string, string) {
 	dirPath := filepath.Dir(path)
 	base := filepath.Base(path)

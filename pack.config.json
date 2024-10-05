@@ -1,0 +1,9 @@
+{
+    "name": "pack",
+    "method": "zip",
+    "outDir": ".pack-out",
+    "include": [
+        "flake*"
+    ],
+    "hooks": {}
+}
