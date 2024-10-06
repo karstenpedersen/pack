@@ -32,3 +32,11 @@ bin
 out
 output
 .pack-out
+
+# global
+GPATH
+GRTAGS
+GTAGS
+tmp/
+TAGS
+tags

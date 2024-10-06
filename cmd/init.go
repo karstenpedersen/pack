@@ -26,11 +26,11 @@ var initCmd = &cobra.Command{
 		yesToAll, _ := cmd.Flags().GetBool("yes")
 		override, _ := cmd.Flags().GetBool("override")
 
-		configFile, err := pack.GetProjectConfigPath()
+		configPath, err := pack.GetProjectConfigPath()
 		if err != nil {
 			utils.Exit(err)
 		}
-		if exists, _ := pack.ProjectConfigExists(); exists && !override {
+		if _, err := os.Stat(configPath); err == nil && !override {
 			utils.Exit("Config file already exists.")
 		}
 
@@ -42,9 +42,9 @@ var initCmd = &cobra.Command{
 
 		// Get input from user
 		if !yesToAll {
-			ui.Input("Name", &config.Name)
-			ui.Input("Method", &config.Method)
-			ui.Input("Output directory", &config.OutDir)
+			ui.Input("Name", &config.Config.Name)
+			ui.Input("Method", &config.Config.Method)
+			ui.Input("Output directory", &config.Config.OutDir)
 		}
 
 		// Marshal config
@@ -54,7 +54,7 @@ var initCmd = &cobra.Command{
 		}
 
 		// Creating config
-		err = os.WriteFile(configFile, []byte(configStr), 0644)
+		err = os.WriteFile(configPath, []byte(configStr), 0644)
 		if err != nil {
 			utils.Exit("Error creating config file:", err)
 		}

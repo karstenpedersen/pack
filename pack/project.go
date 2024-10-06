@@ -17,7 +17,7 @@ type ProjectHooks struct {
 	PostHook string `mapstructure:"postHook" json:"postHook,omitempty"`
 }
 
-type Project struct {
+type ProjectConfig struct {
 	Name    string            `json:"name"`
 	Method  string            `json:"method"`
 	OutDir  string            `json:"outDir"`
@@ -25,6 +25,11 @@ type Project struct {
 	Exclude []string          `json:"exclude,omitempty"`
 	Rename  map[string]string `json:"rename,omitempty"`
 	Hooks   ProjectHooks      `json:"hooks,omitempty"`
+}
+
+type Project struct {
+	Root   string
+	Config ProjectConfig
 }
 
 func DefaultProject(appConfig *App) (*Project, error) {
@@ -35,24 +40,28 @@ func DefaultProject(appConfig *App) (*Project, error) {
 	name := filepath.Base(wd)
 
 	return &Project{
-		Name:    name,
-		Method:  appConfig.Method,
-		OutDir:  appConfig.OutDir,
-		Include: make([]string, 0),
-		Exclude: make([]string, 0),
-		Rename:  make(map[string]string),
-		Hooks: ProjectHooks{
-			PreHook:  "",
-			PostHook: "",
+		Root: wd,
+		Config: ProjectConfig{
+			Name:    name,
+			Method:  appConfig.Method,
+			OutDir:  appConfig.OutDir,
+			Include: make([]string, 0),
+			Exclude: make([]string, 0),
+			Rename:  make(map[string]string),
+			Hooks: ProjectHooks{
+				PreHook:  "",
+				PostHook: "",
+			},
 		},
 	}, nil
 }
 
-func LoadProject(app *App, path string, name string, typee string) (*Project, error) {
-	configPath, err := GetProjectConfigPath()
+func LoadProject(app *App, path ...string) (*Project, error) {
+	configPath, err := GetProjectConfigPath(path...)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(configPath)
 
 	file, err := os.Open(configPath)
 	if err != nil {
@@ -69,22 +78,24 @@ func LoadProject(app *App, path string, name string, typee string) (*Project, er
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(data, project)
+	if err = json.Unmarshal(data, &project.Config); err != nil {
+		return nil, err
+	}
 
 	return project, nil
 }
 
 func (p *Project) GetAffectedFiles() []string {
-	return utils.GlobMatch(".", p.Include, p.Exclude)
+	return utils.GlobMatch(".", p.Config.Include, p.Config.Exclude)
 }
 
 func (p *Project) GetOutputPath() string {
-	return p.OutDir
+	return p.Config.OutDir
 }
 
 func (p *Project) GetTargetPath() string {
-	outFile := fmt.Sprintf("%s.%s", p.Name, methodExtensions[p.Method])
-	return path.Join(p.OutDir, outFile)
+	outFile := fmt.Sprintf("%s.%s", p.Config.Name, methodExtensions[p.Config.Method])
+	return path.Join(p.Config.OutDir, outFile)
 }
 
 func (p *Project) Marshal() ([]byte, error) {
@@ -98,8 +109,8 @@ func (p *Project) Pack() (string, error) {
 	path := p.GetTargetPath()
 
 	// Package project
-	if p.Method == "zip" {
-		if err := utils.ZipFiles(files, path, p.Rename); err != nil {
+	if p.Config.Method == "zip" {
+		if err := utils.ZipFiles(files, path, p.Config.Rename); err != nil {
 			return "", err
 		}
 	} else {
@@ -109,20 +120,36 @@ func (p *Project) Pack() (string, error) {
 	return path, nil
 }
 
-func GetProjectConfigPath() (string, error) {
-	path := DEFAULT_PROJECT_CONFIG_FILE
+func GetProjectConfigPath(optionalPath ...string) (string, error) {
+	if len(optionalPath) > 0 && optionalPath[0] != "" {
+		return optionalPath[0], nil
+	}
+
+	path, err := FindFileInParents(DEFAULT_PROJECT_CONFIG_FILE)
+	if err != nil {
+		return "", err
+	}
 	return path, nil
 }
 
-func ProjectConfigExists() (bool, error) {
-	configPath, err := GetProjectConfigPath()
+func FindFileInParents(filename string) (string, error) {
+	current, err := os.Getwd()
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	if _, err := os.Stat(configPath); err != nil {
-		return false, err
+	for {
+		filePath := filepath.Join(current, filename)
+		if _, err := os.Stat(filePath); err == nil {
+			return filePath, nil
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
 	}
 
-	return true, nil
+	return "", fmt.Errorf("file %s not found in any parent directory", filename)
 }

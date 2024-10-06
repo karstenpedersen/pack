@@ -16,7 +16,7 @@ var checkCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		files := project.GetAffectedFiles()
 		for _, file := range files {
-			new, exists := project.Rename[file]
+			new, exists := project.Config.Rename[file]
 			if exists {
 				fmt.Printf("%s > %s\n", file, new)
 			} else {

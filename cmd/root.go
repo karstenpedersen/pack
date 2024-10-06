@@ -27,12 +27,8 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		dir, name, ext := utils.GetPathBaseAndExtension(projectConfigFile)
-		if name == "." {
-			name = ".pack"
-		}
-
-		p, err := pack.LoadProject(app, dir, name, ext)
+		fmt.Println("TEST", projectConfigFile)
+		p, err := pack.LoadProject(app, projectConfigFile)
 		if err != nil {
 			utils.Exit(err)
 		}
@@ -40,10 +36,10 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create output directory
-		os.MkdirAll(project.OutDir, os.ModePerm)
+		os.MkdirAll(project.Config.OutDir, os.ModePerm)
 
 		// Execute beforeHook
-		if err := tryRunHook(project.Hooks.PreHook); err != nil {
+		if err := tryRunHook(project.Config.Hooks.PreHook); err != nil {
 			utils.Exit("Error running preHook:", err)
 		}
 
@@ -53,7 +49,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Execute afterHook
-		if err := tryRunHook(project.Hooks.PostHook); err != nil {
+		if err := tryRunHook(project.Config.Hooks.PostHook); err != nil {
 			utils.Exit("Error running postHook:", err)
 		}
 
@@ -69,7 +65,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&projectConfigFile, "config", "c", ".", "config file")
+	rootCmd.PersistentFlags().StringVarP(&projectConfigFile, "config", "c", "", "config file")
 }
 
 func runHook(hook string) (string, error) {
