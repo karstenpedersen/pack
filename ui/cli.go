@@ -12,10 +12,14 @@ func Input(title string, target *string) {
 	if *target == "" {
 		fmt.Printf("%s: ", title)
 	} else {
-		fmt.Printf("%s(%s): ", title, *target)
+		fmt.Printf("%s: (%s) ", title, *target)
 	}
 	input, err := reader.ReadString('\n')
-	if err != nil || input == "\n" {
+	if err != nil {
+		fmt.Println("Error: Failed to get user input")
+		return
+	}
+	if input == "\n" {
 		return
 	}
 

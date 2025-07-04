@@ -5,29 +5,38 @@ import (
 	"path/filepath"
 )
 
-func Glob(root string, fn func(string)bool) []string {
+func Glob(root string, fn func(string) (bool, error)) ([]string, error) {
 	var files []string
-	filepath.WalkDir(root, func(s string, d fs.DirEntry, e error) error {
-		if fn(s) {
+	err := filepath.WalkDir(root, func(s string, d fs.DirEntry, e error) error {
+		if match, err := fn(s); err != nil {
+			return err
+		} else if match {
 			files = append(files, s)
 		}
 		return nil
 	})
-	return files
+	if err != nil {
+		return []string{}, err
+	}
+	return files, nil
 }
 
-func GlobMatch(root string, include []string, exclude []string) []string {
-	return Glob(root, func (s string) bool {
-		for _, i := range include {
-			if matched, _ := filepath.Match(i, s); matched {
-				for _, e := range exclude {
-					if matched, _ := filepath.Match(e, s); matched {
-						return false
+func GlobMatch(root string, include []string, exclude []string) ([]string, error) {
+	return Glob(root, func(s string) (bool, error) {
+		for _, includePattern := range include {
+			if matched, err := filepath.Match(includePattern, s); err != nil {
+				return false, err
+			} else if matched {
+				for _, excludePattern := range exclude {
+					if matched, err := filepath.Match(excludePattern, s); err != nil {
+						return false, err
+					} else if matched {
+						return matched, nil
 					}
 				}
-				return true
+				return true, nil
 			}
 		}
-		return false
+		return false, nil
 	})
 }

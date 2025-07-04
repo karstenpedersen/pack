@@ -36,9 +36,21 @@ You can then specify what files you want to include. Here I specify that I want 
 }
 ```
 
-We can now run `pack check` to see what files will get packaged and `pack` to zip them to `.pack-out/pack.zip`.
+We can now run `pack check` to see what files will get packaged and `pack run` to zip them to `.pack-out/pack.zip`.
 
 ## Example Use Case
 
-I created this tool to zip files for my university assignments. With `pack` I can compile LaTeX and then package its output together with my source code and other files.
+I created this tool to zip files for my school assignments. With `pack run` I can compile LaTeX and then package its output together with my source code and other files.
 
+## Commands
+
+```bash
+pack # help
+pack --help # help
+pack --version # prints version
+
+pack init # initialize pack config
+pack check # check what files will be packaged
+pack run # package files
+pack show # show packaged files
+```

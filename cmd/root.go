@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -14,69 +14,58 @@ import (
 
 var app *pack.App
 var project *pack.Project
-var projectConfigFile string
+var configPathFlag string
 
 var rootCmd = &cobra.Command{
 	Use:   "pack",
 	Short: "Packages files",
 	Long:  `Packages files.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		app = pack.LoadApp()
+		app, err := pack.LoadApp()
+		if err != nil {
+			utils.Exit(err)
+		}
 
-		if _, skip := cmd.Annotations["skipProjectConfig"]; skip {
+		if skip, ok := cmd.Annotations["skipProjectConfig"]; ok && skip == "true" {
 			return
 		}
 
-		fmt.Println("TEST", projectConfigFile)
-		p, err := pack.LoadProject(app, projectConfigFile)
+		p, err := pack.LoadCurrentProject(app, configPathFlag)
 		if err != nil {
 			utils.Exit(err)
 		}
 		project = p
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		// Create output directory
-		os.MkdirAll(project.Config.OutDir, os.ModePerm)
-
-		// Execute beforeHook
-		if err := tryRunHook(project.Config.Hooks.PreHook); err != nil {
-			utils.Exit("Error running preHook:", err)
-		}
-
-		path, err := project.Pack()
-		if err != nil {
-			utils.Exit(err)
-		}
-
-		// Execute afterHook
-		if err := tryRunHook(project.Config.Hooks.PostHook); err != nil {
-			utils.Exit("Error running postHook:", err)
-		}
-
-		fmt.Println(path)
 	},
 }
 
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		utils.Exit("Error starting cli")
+		utils.Exit("error starting cli")
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&projectConfigFile, "config", "c", "", "config file")
+	rootCmd.PersistentFlags().StringVarP(&configPathFlag, "config", "c", "", "config file")
 }
 
 func runHook(hook string) (string, error) {
+	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
 	cmd := exec.Command(hook)
-	var out strings.Builder
-	cmd.Stdout = &out
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
 
-	return out.String(), nil
+	stdout := stdoutBuf.String()
+	stderr := stderrBuf.String()
+	if len(stderr) != 0 {
+		return "", errors.New(stderr)
+	}
+
+	return stdout, nil
 }
 
 func tryRunHook(hook string) error {

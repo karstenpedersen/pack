@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/karstenpedersen/pack/pack"
 	"github.com/karstenpedersen/pack/ui"
@@ -18,7 +19,7 @@ func init() {
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize project",
+	Short: "Initialize pack config",
 	Annotations: map[string]string{
 		"skipProjectConfig": "true",
 	},
@@ -26,40 +27,58 @@ var initCmd = &cobra.Command{
 		yesToAll, _ := cmd.Flags().GetBool("yes")
 		override, _ := cmd.Flags().GetBool("override")
 
-		configPath, err := pack.GetProjectConfigPath()
+		configPath := pack.PROJECT_CONFIG_FILE
+		absConfigPath, err := filepath.Abs(configPath)
 		if err != nil {
 			utils.Exit(err)
 		}
+
+		// Check if config file already exists
 		if _, err := os.Stat(configPath); err == nil && !override {
 			utils.Exit("Config file already exists.")
 		}
 
-		// Default config
-		config, err := pack.DefaultProject(app)
+		// Create default project
+		project, err := pack.NewProject(app)
 		if err != nil {
 			utils.Exit(err)
 		}
 
 		// Get input from user
 		if !yesToAll {
-			ui.Input("Name", &config.Config.Name)
-			ui.Input("Method", &config.Config.Method)
-			ui.Input("Output directory", &config.Config.OutDir)
+			ui.Input("Name", &project.Config.Name)
+			ui.Input("Method", &project.Config.Method)
+			ui.Input("Output directory", &project.Config.OutDir)
 		}
 
 		// Marshal config
-		configStr, err := config.Marshal()
+		configData, err := project.MarshalConfig()
 		if err != nil {
 			utils.Exit("Failed to marshal config")
 		}
 
-		// Creating config
-		err = os.WriteFile(configPath, []byte(configStr), 0644)
-		if err != nil {
-			utils.Exit("Error creating config file:", err)
+		// Ask if config is OK
+		if !yesToAll {
+			// Show config to user
+			fmt.Printf("About to write the following to %s:\n\n", absConfigPath)
+			fmt.Println(string(configData))
+
+			isThisOkay := "yes"
+			ui.Input("\nIs this OK?", &isThisOkay)
+			if isThisOkay != "yes" {
+				fmt.Println("Aborted.")
+				return
+			}
 		}
 
-		fmt.Println("Initialized project:")
-		fmt.Println(string(configStr))
+		// Create config file
+		err = os.WriteFile(configPath, configData, 0644)
+		if err != nil {
+			utils.Exit("Error creating config file:", err)
+		} else if yesToAll {
+			// Show config to user
+			fmt.Printf("Wrote the following to %s:\n\n", absConfigPath)
+			fmt.Println(string(configData))
+		}
 	},
 }

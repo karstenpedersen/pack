@@ -6,23 +6,23 @@ const (
 	APP_NAME = "pack"
 	VERSION  = "0.0.1"
 
-	APP_CONFIG_FILE             = "config"
-	DEFAULT_PROJECT_CONFIG_FILE = "pack.config.json"
+	APP_CONFIG_FILE     = "config.json"
+	PROJECT_CONFIG_FILE = "pack.config.json"
 )
 
 const (
-	zipMethod = "zip"
-	tarMethod = "tar"
+	ZIP_METHOD = "zip"
+	TAR_METHOD = "tar"
 )
 
 var methodExtensions = map[string]string{
-	zipMethod: "zip",
-	tarMethod: "tar",
+	ZIP_METHOD: "zip",
+	TAR_METHOD: "tar",
 }
 
 const (
-	defaultMethod string = zipMethod
-	defaultOutDir string = ".pack-out"
+	DEFAULT_METHOD     string = ZIP_METHOD
+	DEFAULT_OUTPUT_DIR string = ".pack-out"
 )
 
 func GetVersionString() string {

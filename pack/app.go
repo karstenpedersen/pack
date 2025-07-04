@@ -14,33 +14,36 @@ type App struct {
 
 func DefaultApp() *App {
 	return &App{
-		Method: defaultMethod,
-		OutDir: defaultOutDir,
+		Method: DEFAULT_METHOD,
+		OutDir: DEFAULT_OUTPUT_DIR,
 	}
 }
 
-func LoadApp() *App {
+func LoadApp() (*App, error) {
 	app := DefaultApp()
 
 	configPath, err := GetAppConfigPath()
 	if err != nil {
-		return app
+		return nil, err
 	}
 
 	file, err := os.Open(configPath)
 	if err != nil {
-		return app
+		return nil, err
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return app
+		return nil, err
 	}
 
-	json.Unmarshal(data, app)
+	err = json.Unmarshal(data, app)
+	if err != nil {
+		return nil, err
+	}
 
-	return app
+	return app, nil
 }
 
 func GetAppConfigPath() (string, error) {
