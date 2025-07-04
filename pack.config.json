@@ -2,6 +2,8 @@
     "name": "pack",
     "method": "zip",
     "outDir": ".pack-out",
-    "include": [],
+    "include": [
+        "README.md"
+    ],
     "hooks": {}
 }

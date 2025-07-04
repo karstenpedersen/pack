@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -38,12 +37,34 @@ func NewProject(app *App) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Print(root)
 
 	return DefaultProject(app, root)
 }
 
+func LoadProject(app *App, configPath string) (*Project, error) {
+	project, err := DefaultProject(app, configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = utils.ReadConfigFile(&project.Config, project.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return project, nil
+}
+
 func DefaultProject(appConfig *App, configPath string) (*Project, error) {
+	fileInfo, err := os.Stat(configPath)
+	if err != nil {
+		return nil, err
+	}
 	projectPath := filepath.Dir(configPath)
+	if fileInfo.IsDir() {
+		projectPath = configPath
+	}
 	projectName := filepath.Base(projectPath)
 
 	return &Project{
@@ -64,29 +85,6 @@ func DefaultProject(appConfig *App, configPath string) (*Project, error) {
 	}, nil
 }
 
-func LoadProject(app *App, configPath string) (*Project, error) {
-	file, err := os.Open(configPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	project, err := DefaultProject(app, configPath)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(data, &project.ConfigPath); err != nil {
-		return nil, err
-	}
-
-	return project, nil
-}
-
 func LoadCurrentProject(app *App, optionalConfigPath ...string) (*Project, error) {
 	configPath, err := GetProjectConfigPath(optionalConfigPath...)
 	if err != nil {
@@ -105,13 +103,13 @@ func (p *Project) GetAffectedFiles() ([]string, error) {
 }
 
 func (p *Project) GetMethodExtension() string {
-	return methodExtensions[p.Config.Method]
+	return METHOD_EXTENSIONS[p.Config.Method]
 }
 
 func (p *Project) GetTargetPath() string {
 	extension := p.GetMethodExtension()
-	outFile := fmt.Sprintf("%s.%s", p.Config.Name, extension)
-	return path.Join(p.Config.OutDir, outFile)
+	filename := fmt.Sprintf("%s.%s", p.Config.Name, extension)
+	return path.Join(p.Config.OutDir, filename)
 }
 
 func (p *Project) Marshal() ([]byte, error) {
@@ -131,8 +129,12 @@ func (p *Project) Pack() (string, error) {
 
 	// Package project
 	switch p.Config.Method {
-	case "zip":
+	case ZIP_METHOD:
 		if err := utils.ZipFiles(files, path, p.Config.Rename); err != nil {
+			return "", err
+		}
+	case TAR_METHOD:
+		if err := utils.TarFiles(files, path, p.Config.Rename); err != nil {
 			return "", err
 		}
 	default:

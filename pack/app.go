@@ -1,10 +1,11 @@
 package pack
 
 import (
-	"encoding/json"
-	"io"
+	"errors"
 	"os"
 	"path/filepath"
+
+	"github.com/karstenpedersen/pack/utils"
 )
 
 type App struct {
@@ -24,26 +25,15 @@ func LoadApp() (*App, error) {
 
 	configPath, err := GetAppConfigPath()
 	if err != nil {
-		return nil, err
+		return app, nil
 	}
 
-	file, err := os.Open(configPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
+		return app, nil
 	}
 
-	err = json.Unmarshal(data, app)
-	if err != nil {
-		return nil, err
-	}
-
-	return app, nil
+	err = utils.ReadConfigFile(app, configPath)
+	return nil, err
 }
 
 func GetAppConfigPath() (string, error) {

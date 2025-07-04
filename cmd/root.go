@@ -21,10 +21,11 @@ var rootCmd = &cobra.Command{
 	Short: "Packages files",
 	Long:  `Packages files.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		app, err := pack.LoadApp()
+		a, err := pack.LoadApp()
 		if err != nil {
 			utils.Exit(err)
 		}
+		app = a
 
 		if skip, ok := cmd.Annotations["skipProjectConfig"]; ok && skip == "true" {
 			return

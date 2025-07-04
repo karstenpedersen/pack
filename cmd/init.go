@@ -39,6 +39,7 @@ var initCmd = &cobra.Command{
 		}
 
 		// Create default project
+		fmt.Println(app.Method)
 		project, err := pack.NewProject(app)
 		if err != nil {
 			utils.Exit(err)

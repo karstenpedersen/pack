@@ -15,7 +15,7 @@ const (
 	TAR_METHOD = "tar"
 )
 
-var methodExtensions = map[string]string{
+var METHOD_EXTENSIONS = map[string]string{
 	ZIP_METHOD: "zip",
 	TAR_METHOD: "tar",
 }
